@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Gold Pawnshop</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .admin-container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        .admin-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .admin-header h1 {
+            color: #d4af37;
+            margin-bottom: 10px;
+        }
+
+        .admin-header .back-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #d4af37;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .admin-header .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .config-form {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            padding: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-section:last-child {
+            border-bottom: none;
+        }
+
+        .form-section h3 {
+            color: #d4af37;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-row {
+            margin-bottom: 20px;
+        }
+
+        .form-row label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-weight: 500;
+        }
+
+        .form-row input {
+            width: 100%;
+            padding: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(212, 175, 55, 0.5);
+            border-radius: 8px;
+            color: #1a1a1a;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .form-row input:focus {
+            outline: none;
+            border-color: #d4af37;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+
+        .form-row .help-text {
+            font-size: 13px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .current-value {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 4px;
+            font-size: 12px;
+            color: #d4af37;
+            margin-left: 10px;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #d4af37 0%, #f4d03f 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1a1a1a;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(212, 175, 55, 0.4);
+        }
+
+        .btn-save:active {
+            transform: translateY(0);
+        }
+
+        .success-message,
+        .error-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #4caf50;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.5);
+            color: #f44336;
+        }
+
+        /* Volatility Card Styles */
+        .volatility-card {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .volatility-info h4 {
+            color: #2196f3;
+            margin: 0 0 5px 0;
+            font-size: 16px;
+        }
+
+        .volatility-stat {
+            font-size: 24px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .volatility-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 14px;
+        }
+
+        .badge-low {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+            border: 1px solid #4caf50;
+        }
+
+        .badge-medium {
+            background: rgba(255, 152, 0, 0.3);
+            color: #ff9800;
+            border: 1px solid #ff9800;
+        }
+
+        .badge-high {
+            background: rgba(244, 67, 54, 0.3);
+            color: #f44336;
+            border: 1px solid #f44336;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 600px) {
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .grid-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .grid-item.active {
+            border-color: #d4af37;
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .grid-item h5 {
+            margin: 0 0 10px 0;
+            color: #bbb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>⚙️ Admin Panel</h1>
+            <p class="subtitle">Dynamic Pricing Configuration</p>
+            <a href="/" class="back-link">← Back to Calculator</a>
+        </div>
+
+        <!-- Live Market Status -->
+        <div class="volatility-card">
+            <div class="volatility-info">
+                <h4>📊 Market Status (7-Day)</h4>
+                <div class="volatility-stat">Volatility: {{ "%.2f"|format(current_volatility.percent) }}%</div>
+                <div style="font-size: 12px; color: #aaa; margin-top: 5px;">
+                    Based on {{ current_volatility.details.get('count', 0) }} data points
+                </div>
+            </div>
+            <div class="volatility-status">
+                <span class="volatility-badge badge-{{ current_volatility.state }}">
+                    Currently: {{ current_volatility.state|upper }}
+                </span>
+            </div>
+        </div>
+
+        <div class="success-message" id="successMessage"></div>
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="configForm" class="config-form">
+
+            <div class="form-section">
+                <h3>💰 Volatility-Based Margins</h3>
+                <p style="font-size: 14px; color: #aaa; margin-bottom: 20px;">
+                    The system automatically switches between these margins based on market volatility.
+                </p>
+
+                <div class="pricing-grid">
+                    <!-- Low Volatility -->
+                    <div class="grid-item {% if current_volatility.state == 'low' %}active{% endif %}">
+                        <h5>🟢 Low Volatility</h5>
+                        <label for="margin_low" style="font-size: 12px; display:block; margin-bottom:5px;">Margin
+                            %</label>
+                        <input type="number" id="margin_low" name="margin_low" value="{{ margins.low }}" step="0.1"
+                            min="0" max="20" required>
+                        <div class="help-text">When market is calm (< {{ thresholds.low_limit }}%)</div>
+                        </div>
+
+                        <!-- Medium Volatility -->
+                        <div class="grid-item {% if current_volatility.state == 'medium' %}active{% endif %}">
+                            <h5>🟠 Medium Volatility</h5>
+                            <label for="margin_medium" style="font-size: 12px; display:block; margin-bottom:5px;">Margin
+                                %</label>
+                            <input type="number" id="margin_medium" name="margin_medium" value="{{ margins.medium }}"
+                                step="0.1" min="0" max="20" required>
+                            <div class="help-text">Standard market conditions</div>
+                        </div>
+
+                        <!-- High Volatility -->
+                        <div class="grid-item {% if current_volatility.state == 'high' %}active{% endif %}">
+                            <h5>🔴 High Volatility</h5>
+                            <label for="margin_high" style="font-size: 12px; display:block; margin-bottom:5px;">Margin
+                                %</label>
+                            <input type="number" id="margin_high" name="margin_high" value="{{ margins.high }}"
+                                step="0.1" min="0" max="30" required>
+                            <div class="help-text">When market is crashing (> {{ thresholds.high_limit }}%)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>🏦 Shop Configuration</h3>
+                    <div class="form-row">
+                        <label for="interest_percent">
+                            Monthly Interest Rate (%)
+                            <span class="current-value">Current: {{ "%.1f"|format(interest_percent) }}%</span>
+                        </label>
+                        <input type="number" id="interest_percent" name="interest_percent"
+                            value="{{ interest_percent }}" step="0.1" min="0" max="100" required>
+                    </div>
+
+                    <div class="form-row">
+                        <label for="shop_name">Shop Name</label>
+                        <input type="text" id="shop_name" name="shop_name" value="{{ shop_name }}" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-save">💾 Save Dynamic Strategy</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('configForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+
+            // Hide previous messages
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+
+            try {
+                const response = await fetch('/admin/update', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    successMsg.textContent = '✅ ' + data.message;
+                    successMsg.style.display = 'block';
+
+                    // Update current value badges and reload
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    errorMsg.textContent = '❌ ' + (data.error || 'Failed to update configuration');
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                errorMsg.textContent = '❌ Error: ' + error.message;
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+
+</html>
