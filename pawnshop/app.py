@@ -26,9 +26,9 @@ app.logger.setLevel(logging.INFO)
 # ============================================================================
 
 # API Configuration
-API_KEY = "208b9e7f2e7d42e7bdf63684249fffe1"  # Your API key (for future use if upgrading)
-EUR_USD_API_URL = "https://api.exchangerate-api.com/v4/latest/USD"  # Free API for EUR/USD rate
-SYMBOL = "XAUEUR"  # Gold price per troy ounce in EUR (target)
+API_KEY = "208b9e7f2e7d42e7bdf63684249fffe1" # Your API key (for future use if upgrading)
+EUR_USD_API_URL = "https://api.exchangerate-api.com/v4/latest/USD" # Free API for EUR/USD rate
+SYMBOL = "XAUEUR" # Gold price per troy ounce in EUR (target)
 
 # Conversion constants
 TROY_OUNCE_TO_GRAMS = 31.1035
@@ -52,7 +52,7 @@ DEFAULT_CONFIG = {
     "volatility_margins": {
         "low": 4.0,     # 4% margin (0.04) -> Buy at 96%
         "medium": 6.0,  # 6% margin (0.06) -> Buy at 94%
-        "high": 9.0     # 9% margin (0.09) -> Buy at 91%
+        "high": 8.0     # 8% margin (0.08) -> Buy at 92%
     },
     "volatility_thresholds": {
         "low_limit": 1.0,  # Volatility < 1% is LOW
@@ -70,17 +70,15 @@ def load_config():
         try:
             with open(CONFIG_FILE, 'r') as f:
                 config = json.load(f)
-                
-                # Recursive update for nested dictionaries (like volatility_margins)
-                for key, value in DEFAULT_CONFIG.items():
-                    if key not in config:
-                        config[key] = value
-                    elif isinstance(value, dict) and isinstance(config[key], dict):
-                        for sub_key, sub_val in value.items():
-                            if sub_key not in config[key]:
-                                config[key][sub_key] = sub_val
-                                
-                return config
+            # Recursive update for nested dictionaries (like volatility_margins)
+            for key, value in DEFAULT_CONFIG.items():
+                if key not in config:
+                    config[key] = value
+                elif isinstance(value, dict) and isinstance(config[key], dict):
+                    for sub_key, sub_val in value.items():
+                        if sub_key not in config[key]:
+                            config[key][sub_key] = sub_val
+            return config
         except Exception as e:
             app.logger.warning(f"Failed to load config: {e}, using defaults")
             return DEFAULT_CONFIG.copy()
@@ -115,16 +113,14 @@ def update_price_history(price_eur):
         except Exception as e:
             app.logger.warning(f"Failed to load price history: {e}")
             history = []
-    
+
     # Append new price with timestamp
     history.append({
         "timestamp": time.time(),
         "price": price_eur,
         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     })
-    
-    # Cleanup: Keep only last 14 days (approx 2 weeks)
-    # Assuming update every load, limit to ~500 entries to be safe
+
     # Cleanup: Keep only last 14 days
     cutoff_time = time.time() - (14 * 24 * 3600)
     history = [h for h in history if h["timestamp"] > cutoff_time]
@@ -132,7 +128,7 @@ def update_price_history(price_eur):
     # Provide a sort of limit if it gets too huge (e.g. 1000 entries)
     if len(history) > 1000:
         history = history[-1000:]
-        
+
     # Save back
     try:
         with open(PRICE_HISTORY_FILE, 'w') as f:
@@ -142,31 +138,31 @@ def update_price_history(price_eur):
 
 def calculate_volatility_state():
     """
-    Calculate volatility over the last 7 days.
+    Calculate volatility over the last 14 days.
     Returns: (state, volatility_percent, details_dict)
     state: 'low', 'medium', 'high'
     """
     if not os.path.exists(PRICE_HISTORY_FILE):
         return 'medium', 0.0, {} # Default to medium if no data
-        
+
     try:
         with open(PRICE_HISTORY_FILE, 'r') as f:
             history = json.load(f)
-            
+
         # Filter for last 14 days
         cutoff_time = time.time() - (14 * 24 * 3600)
         recent_prices = [h['price'] for h in history if h['timestamp'] > cutoff_time]
-        
+
         if len(recent_prices) < 2:
             return 'medium', 0.0, {"msg": "insufficient_data"}
-            
+
         min_price = min(recent_prices)
         max_price = max(recent_prices)
         avg_price = sum(recent_prices) / len(recent_prices)
-        
+
         # Volatility formula: (Max - Min) / Average
         volatility = ((max_price - min_price) / avg_price) * 100
-        
+
         # Determine State
         thresholds = config.get('volatility_thresholds', DEFAULT_CONFIG['volatility_thresholds'])
         
@@ -176,14 +172,13 @@ def calculate_volatility_state():
             state = 'high'
         else:
             state = 'medium'
-            
+
         return state, volatility, {
-            "min": min_price, 
-            "max": max_price, 
+            "min": min_price,
+            "max": max_price,
             "avg": avg_price,
             "count": len(recent_prices)
         }
-            
     except Exception as e:
         app.logger.error(f"Error calculating volatility: {e}")
         return 'medium', 0.0, {}
@@ -203,22 +198,19 @@ def fetch_gold_price():
         }
         
         price_eur = None
-        
+
         # Primary Source: GoldPrice.org JSON Feed (Direct EUR)
-        # This is a robust public feed used by their frontend charts
         try:
             url = "https://data-asg.goldprice.org/dbXRates/EUR"
             response = requests.get(url, headers=headers, timeout=10)
-            
             if response.status_code == 200:
                 data = response.json()
-                # Expected format: {"items": [{"curr": "EUR", "xau_price": 2340.50, ...}]}
                 if "items" in data and len(data["items"]) > 0:
                     price_eur = float(data["items"][0]["xau_price"])
                     app.logger.info(f"Fetched gold price from GoldPrice.org: €{price_eur:.2f}")
         except Exception as e:
             app.logger.warning(f"Primary source (GoldPrice.org) failed: {e}")
-            
+
         # Secondary Source: Fallback to USD feed + Conversion
         if price_eur is None:
             try:
@@ -241,27 +233,22 @@ def fetch_gold_price():
                         price_eur = price_usd * eur_usd_rate
                         app.logger.info(f"Calculated gold price from USD feed: €{price_eur:.2f} (USD: ${price_usd}, Rate: {eur_usd_rate})")
             except Exception as e:
-                 app.logger.warning(f"Secondary source failed: {e}")
+                app.logger.warning(f"Secondary source failed: {e}")
 
         # Fallback if all API sources fail
         if price_eur is None:
-             # Use a dynamic fallback to ensure 'volatility' isn't zero
-             # Add a tiny random fluctuation (+/- €5) to the base fallback
-             base_fallback = 3900.0
-             fluctuation = random.uniform(-5.0, 5.0)
-             price_eur = base_fallback + fluctuation
-             app.logger.warning(f"Using fallback gold price with simulated fluctuation: €{price_eur:.2f}")
+            # STATIC fallback - No fake fluctuation
+            price_eur = 3900.0
+            app.logger.warning(f"Using static fallback gold price: €{price_eur:.2f}")
 
-        # Update History for Volatility Strategy
-        if price_eur:
-            update_price_history(price_eur)
+        # Update History
+        update_price_history(price_eur)
         
         return price_eur
 
     except Exception as e:
         app.logger.error(f"Critical error fetching gold price: {e}")
         return 3900.0
-
 
 def get_current_margin_percentage():
     """Determine the current margin % based on volatility."""
@@ -270,12 +257,10 @@ def get_current_margin_percentage():
     
     # Select margin based on state
     margin_percent = margins.get(state, margins['medium'])
-    
     return margin_percent, state, volatility
 
 def calculate_rates(xaueur_price):
     """Calculate buy/pawn price per gram for each karat using Dynamic Pricing."""
-    
     # 1. Get Dynamic Margin
     margin_percent, volatility_state, volatility_val = get_current_margin_percentage()
     
@@ -291,8 +276,7 @@ def calculate_rates(xaueur_price):
         melt_value_per_gram = price_per_gram_eur * purity_factor
         raw_buy_price = melt_value_per_gram * discount_rate
         
-        # NEW: Round to nearest 0.25 (Quarter Logic) to match user preference
-        # 28.18 -> 28.25, 28.10 -> 28.00
+        # Quarter Logic rounding
         buy_pawn_price_per_gram = round(raw_buy_price * 4) / 4
         
         rates[karat] = {
@@ -309,12 +293,11 @@ def calculate_rates(xaueur_price):
     
     return rates
 
-
 def calculate_loan(karat, weight_in_grams, rates, interest_rate=None):
     """Calculate loan amount, interest, and total due."""
     if interest_rate is None:
         interest_rate = config.get('interest_rate', DEFAULT_CONFIG['interest_rate'])
-    
+        
     buy_pawn_price_per_gram = rates[karat]["buy_pawn_price"]
     melt_value_per_gram = rates[karat]["melt_value"]
     
@@ -322,7 +305,6 @@ def calculate_loan(karat, weight_in_grams, rates, interest_rate=None):
     interest_1_month = loan_amount * interest_rate
     total_due_after_1_month = loan_amount + interest_1_month
     total_melt_value = melt_value_per_gram * weight_in_grams
-    
     due_date = datetime.now() + timedelta(days=30)
     
     return {
@@ -348,17 +330,6 @@ def index():
         # Fetch current gold price
         xaueur_price = fetch_gold_price()
         
-        if xaueur_price is None:
-            # Use fallback price if API fails
-            try:
-                eur_response = requests.get(EUR_USD_API_URL, timeout=5)
-                eur_data = eur_response.json()
-                eur_usd_rate = float(eur_data.get("rates", {}).get("EUR", 0.92))
-                xaueur_price = 4200.0 * eur_usd_rate
-            except Exception as e:
-                app.logger.warning(f"Failed to fetch EUR/USD rate: {e}")
-                xaueur_price = 3864.0  # Approximate fallback
-        
         # Calculate rates for all karats
         rates = calculate_rates(xaueur_price)
         
@@ -369,18 +340,18 @@ def index():
         karats_list = sorted(KARAT_PURITY.keys(), reverse=True)
         
         return render_template('index.html', 
-                             xaueur_price=xaueur_price,
-                             rates=rates,
+                             xaueur_price=xaueur_price, 
+                             rates=rates, 
                              karats=karats_list,
-                             meta_info=meta_info)
-
+                             meta_info=meta_info,
+                             is_fallback=True if xaueur_price == 3900.0 else False)
+                             
     except Exception as e:
         error_msg = str(e)
         error_trace = traceback.format_exc()
         app.logger.error(f"Error in index route: {error_msg}")
         app.logger.error(error_trace)
         return f"Error: {error_msg}", 500
-
 
 @app.route('/calculate', methods=['POST'])
 def calculate():
@@ -391,15 +362,11 @@ def calculate():
         
         if karat not in KARAT_PURITY:
             return jsonify({"error": "Invalid karat. Must be one of: 9, 14, 18, 22, 24"}), 400
-        
         if weight <= 0:
             return jsonify({"error": "Weight must be greater than 0"}), 400
-        
+            
         # Fetch current gold price
         xaueur_price = fetch_gold_price()
-        if xaueur_price is None:
-            # Fallback
-            xaueur_price = 3864.0 # Roughly €4200 USD equivalent
         
         # Calculate rates
         rates = calculate_rates(xaueur_price)
@@ -414,15 +381,11 @@ def calculate():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/api/rates', methods=['GET'])
 def api_rates():
     """API endpoint to get current rates."""
     try:
         xaueur_price = fetch_gold_price()
-        if xaueur_price is None:
-             xaueur_price = 3864.0
-        
         rates = calculate_rates(xaueur_price)
         meta_info = rates.pop('_meta', None)
         
@@ -435,12 +398,10 @@ def api_rates():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint."""
     return jsonify({"status": "ok", "message": "Gold Pawnshop Calculator is running"})
-
 
 @app.route('/admin', methods=['GET'])
 def admin_panel():
@@ -458,7 +419,7 @@ def admin_panel():
         # Calculate current volatility for display
         state, vol_percent, vol_details = calculate_volatility_state()
         
-        return render_template('admin.html',
+        return render_template('admin.html', 
                              interest_percent=interest_percent,
                              shop_name=current_config.get('shop_name', 'Gold Pawnshop'),
                              margins=margins,
@@ -472,7 +433,6 @@ def admin_panel():
         app.logger.error(f"Error loading admin panel: {e}")
         return f"Error loading admin panel: {e}", 500
 
-
 @app.route('/admin/update', methods=['POST'])
 def update_config():
     """Update configuration from admin panel."""
@@ -484,7 +444,7 @@ def update_config():
         # Get Volatility Margins
         margin_low = float(request.form.get('margin_low', 4.0))
         margin_medium = float(request.form.get('margin_medium', 6.0))
-        margin_high = float(request.form.get('margin_high', 9.0))
+        margin_high = float(request.form.get('margin_high', 8.0))
         
         # Convert interest percentage to rate
         interest_rate = interest_percent / 100
@@ -506,10 +466,9 @@ def update_config():
             # Reload global config
             global config
             config = load_config()
-            
             return jsonify({
                 "success": True,
-                "message": "Dynamic Pricing Strategy updated!",
+                "message": "Configuration updated successfully!",
             })
         else:
             return jsonify({"error": "Failed to save configuration"}), 500
@@ -520,7 +479,6 @@ def update_config():
         app.logger.error(f"Error updating config: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors with detailed information."""
@@ -529,19 +487,17 @@ def internal_error(error):
     app.logger.error(error_trace)
     return f"""
     <html>
-    <head><title>Internal Server Error</title></head>
-    <body style="font-family: Arial; padding: 40px;">
-        <h1>Internal Server Error</h1>
-        <p>The server encountered an error. Check Render logs for details.</p>
-        <pre style="background: #f5f5f5; padding: 20px;">{error_trace}</pre>
-    </body>
+        <head><title>Internal Server Error</title></head>
+        <body style="font-family: Arial; padding: 40px;">
+            <h1>Internal Server Error</h1>
+            <p>The server encountered an error. Check logs for details.</p>
+            <pre style="background: #f5f5f5; padding: 20px;">{error_trace}</pre>
+        </body>
     </html>
     """, 500
 
-
 if __name__ == '__main__':
-    # Set debug=False for production deployment
-    # Change to debug=True only for local development
+    # Production settings
     import os
     DEBUG_MODE = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
-    app.run(debug=DEBUG_MODE, host='0.0.0.0', port=5001)
+    app.run(debug=DEBUG_MODE, host='0.0.0.0', port=os.environ.get('PORT', 5001))
