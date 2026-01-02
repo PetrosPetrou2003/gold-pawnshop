@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gold Pawnshop Calculator</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 
 <body>
     <div class="container">
@@ -19,7 +17,6 @@
                 style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: rgba(212, 175, 55, 0.2); border: 1px solid #d4af37; border-radius: 6px; color: #d4af37; text-decoration: none; font-size: 14px; transition: all 0.3s ease;">⚙️
                 Admin Panel</a>
         </header>
-
 
         <!-- Current Gold Price Display -->
         <div class="price-banner">
@@ -34,7 +31,239 @@
             </div>
         </div>
 
-
         {% if is_fallback %}
         <div class="alert-banner"
             style="background: #e74c3c; color: white; padding: 10px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold;">
+            ⚠️ API CONNECTION FAILED: Using Offline Emergency Prices (€3900.00)
+        </div>
+        {% endif %}
+
+        <!-- Rate Sheet -->
+        <section class="rate-sheet">
+            <h2>Current Rate Sheet</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Karat</th>
+                            <th>Melt Value/g</th>
+                            <th>Buy/Pawn Price/g</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for karat in karats %}
+                        <tr>
+                            <td><strong>{{ karat }}k</strong></td>
+                            <td>€{{ "%.4f"|format(rates[karat]['melt_value']) }}</td>
+                            <td class="highlight">€{{ "%.4f"|format(rates[karat]['buy_pawn_price']) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Calculator Form -->
+        <section class="calculator">
+            <h2>Calculate Loan</h2>
+            <form id="loanForm">
+                <div class="form-group">
+                    <label for="karat">Karat:</label>
+                    <select id="karat" name="karat" required>
+                        <option value="">Select Karat</option>
+                        {% for karat in karats %}
+                        <option value="{{ karat }}">{{ karat }}k</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="weight">Weight (grams):</label>
+                    <input type="number" id="weight" name="weight" step="0.001" min="0.001" required
+                        placeholder="Enter weight in grams">
+                </div>
+
+                <button type="submit" class="btn-calculate">Calculate Loan</button>
+            </form>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results" id="results" style="display: none;">
+            <h2>Loan Summary</h2>
+            <div class="results-grid">
+                <div class="result-card">
+                    <div class="result-label">Karat</div>
+                    <div class="result-value" id="result-karat">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">Weight</div>
+                    <div class="result-value" id="result-weight">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">Melt Value per gram</div>
+                    <div class="result-value" id="result-melt-per-gram">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">Total Melt Value</div>
+                    <div class="result-value" id="result-total-melt">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">Buy/Pawn Price per gram</div>
+                    <div class="result-value" id="result-buy-pawn-per-gram">-</div>
+                </div>
+                <div class="result-card highlight-card">
+                    <div class="result-label">Loan Amount (Pawn Price)</div>
+                    <div class="result-value highlight" id="result-loan-amount">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">Interest (1 month @ 13%)</div>
+                    <div class="result-value" id="result-interest">-</div>
+                </div>
+                <div class="result-card highlight-card">
+                    <div class="result-label">Total Due After 1 Month</div>
+                    <div class="result-value highlight" id="result-total-due">-</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-label">Due Date (30 days)</div>
+                    <div class="result-value" id="result-due-date">-</div>
+                </div>
+            </div>
+            <button type="button" class="btn-reset" onclick="resetForm()">Calculate Another</button>
+        </section>
+
+        <!-- Error Message -->
+        <div class="error-message" id="errorMessage" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Auto-refresh disabled to prevent AJAX errors - Manual refresh only via button
+        // const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        let refreshTimer;
+
+        // Update price display
+        function refreshPrice() {
+            // Simply reload the page as requested
+            window.location.reload();
+        }
+
+        /* Legacy AJAX Refresh - Disabled for stability
+        async function refreshPrice_OLD() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            const priceValue = document.getElementById('current-price');
+            const updateTime = document.getElementById('update-time');
+
+            // Disable button during refresh
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '↻ Refreshing...';
+
+            try {
+                const response = await fetch('/api/rates');
+                const data = await response.json();
+
+                if (data.xaueur_price) {
+                    priceValue.textContent = '€' + data.xaueur_price.toFixed(2) + ' per troy ounce';
+                    updateTime.textContent = data.last_updated || new Date().toLocaleString();
+
+                    // Update rate sheet
+                    updateRateSheet(data.rates);
+                }
+            } catch (error) {
+                console.error('Error refreshing price:', error);
+                updateTime.textContent = 'Error refreshing';
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '↻ Refresh';
+            }
+        }
+        */
+
+        // Update rate sheet table
+        function updateRateSheet(rates) {
+            const karats = [24, 22, 18, 14, 9];
+            const tableRows = document.querySelectorAll('tbody tr');
+
+            tableRows.forEach((row, index) => {
+                if (index < karats.length) {
+                    const karat = karats[index];
+                    if (rates[karat]) {
+                        const cells = row.querySelectorAll('td');
+                        if (cells.length >= 3) {
+                            cells[1].textContent = '€' + rates[karat].melt_value.toFixed(4);
+                            cells[2].textContent = '€' + rates[karat].buy_pawn_price.toFixed(4);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize: Set initial update time and start auto-refresh
+        document.addEventListener('DOMContentLoaded', function () {
+            const now = new Date();
+            document.getElementById('update-time').textContent = now.toLocaleString();
+
+            // Fetch fresh price immediately on page load - ALREADY DONE BY SERVER RENDER
+            // refreshPrice(); 
+
+            // Start auto-refresh timer - DISABLED
+            // refreshTimer = setInterval(refreshPrice, REFRESH_INTERVAL);
+        });
+
+        // Form submission handler
+        document.getElementById('loanForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const karat = document.getElementById('karat').value;
+            const weight = document.getElementById('weight').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const resultsDiv = document.getElementById('results');
+
+            // Hide previous errors
+            errorDiv.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('karat', karat);
+                formData.append('weight', weight);
+
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'An error occurred');
+                }
+
+                // Display results
+                document.getElementById('result-karat').textContent = data.karat + 'k';
+                const weightVal = (data.weight_in_grams !== undefined) ? data.weight_in_grams : data.weight;
+                document.getElementById('result-weight').textContent = Number(weightVal).toFixed(4) + ' grams';
+                document.getElementById('result-melt-per-gram').textContent = '€' + data.melt_value_per_gram.toFixed(4);
+                document.getElementById('result-total-melt').textContent = '€' + data.total_melt_value.toFixed(2);
+                document.getElementById('result-buy-pawn-per-gram').textContent = '€' + data.buy_pawn_price_per_gram.toFixed(4);
+                document.getElementById('result-loan-amount').textContent = '€' + data.loan_amount.toFixed(2);
+                document.getElementById('result-interest').textContent = '€' + data.interest_1_month.toFixed(2);
+                document.getElementById('result-total-due').textContent = '€' + data.total_due_after_1_month.toFixed(2);
+                document.getElementById('result-due-date').textContent = data.due_date;
+
+                resultsDiv.style.display = 'block';
+                resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            } catch (error) {
+                errorDiv.textContent = 'Error: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        });
+
+        function resetForm() {
+            document.getElementById('loanForm').reset();
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('weight').focus();
+        }
+    </script>
+</body>
+
+</html>
