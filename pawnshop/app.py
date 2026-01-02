@@ -1,4 +1,4 @@
-}
+
         
         # Save
         if save_config(current_config):
