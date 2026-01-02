@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,7 +13,8 @@
         <header>
             <h1>Gold Pawnshop Calculator</h1>
             <p class="subtitle">Professional Gold Loan Calculator</p>
-            <a href="/admin" style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: rgba(212, 175, 55, 0.2); border: 1px solid #d4af37; border-radius: 6px; color: #d4af37; text-decoration: none; font-size: 14px; transition: all 0.3s ease;">⚙️
+            <a href="/admin"
+                style="display: inline-block; margin-top: 10px; padding: 8px 16px; background: rgba(212, 175, 55, 0.2); border: 1px solid #d4af37; border-radius: 6px; color: #d4af37; text-decoration: none; font-size: 14px; transition: all 0.3s ease;">⚙️
                 Admin Panel</a>
         </header>
 
@@ -23,13 +25,15 @@
                 <span class="price-value" id="current-price">€{{ "%.2f"|format(xaueur_price) }} per troy ounce</span>
             </div>
             <div class="price-update-info">
-                <span id="last-updated">Last updated: <span id="update-time">Error refreshing</span></span>
-                <button id="refresh-btn" class="btn-refresh" onclick="refreshPrice()" title="Refresh price">↻ Refresh</button>
+                <span id="last-updated">Last updated: <span id="update-time">Loading...</span></span>
+                <button id="refresh-btn" class="btn-refresh" onclick="refreshPrice()" title="Refresh price">↻
+                    Refresh</button>
             </div>
         </div>
 
         {% if is_fallback %}
-        <div class="alert-banner" style="background: #e74c3c; color: white; padding: 10px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold;">
+        <div class="alert-banner"
+            style="background: #e74c3c; color: white; padding: 10px; border-radius: 6px; margin-bottom: 20px; text-align: center; font-weight: bold;">
             ⚠️ API CONNECTION FAILED: Using Offline Emergency Prices (€3900.00)
         </div>
         {% endif %}
@@ -65,7 +69,7 @@
             <form id="loanForm">
                 <div class="form-group">
                     <label for="karat">Karat:</label>
-                    <select id="karat" name="karat" required="">
+                    <select id="karat" name="karat" required>
                         <option value="">Select Karat</option>
                         {% for karat in karats %}
                         <option value="{{ karat }}">{{ karat }}k</option>
@@ -75,7 +79,8 @@
 
                 <div class="form-group">
                     <label for="weight">Weight (grams):</label>
-                    <input type="number" id="weight" name="weight" step="0.001" min="0.001" required="" placeholder="Enter weight in grams">
+                    <input type="number" id="weight" name="weight" step="0.001" min="0.001" required
+                        placeholder="Enter weight in grams">
                 </div>
 
                 <button type="submit" class="btn-calculate">Calculate Loan</button>
@@ -131,12 +136,18 @@
     </div>
 
     <script>
-        // Auto-refresh price every 5 minutes (300000 ms)
-        const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+        // Auto-refresh disabled to prevent AJAX errors - Manual refresh only via button
+        // const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
         let refreshTimer;
 
         // Update price display
-        async function refreshPrice() {
+        function refreshPrice() {
+            // Simply reload the page as requested
+            window.location.reload();
+        }
+
+        /* Legacy AJAX Refresh - Disabled for stability
+        async function refreshPrice_OLD() {
             const refreshBtn = document.getElementById('refresh-btn');
             const priceValue = document.getElementById('current-price');
             const updateTime = document.getElementById('update-time');
@@ -164,6 +175,7 @@
                 refreshBtn.textContent = '↻ Refresh';
             }
         }
+        */
 
         // Update rate sheet table
         function updateRateSheet(rates) {
@@ -189,11 +201,11 @@
             const now = new Date();
             document.getElementById('update-time').textContent = now.toLocaleString();
 
-            // Fetch fresh price immediately on page load
-            refreshPrice();
+            // Fetch fresh price immediately on page load - ALREADY DONE BY SERVER RENDER
+            // refreshPrice(); 
 
-            // Start auto-refresh timer
-            refreshTimer = setInterval(refreshPrice, REFRESH_INTERVAL);
+            // Start auto-refresh timer - DISABLED
+            // refreshTimer = setInterval(refreshPrice, REFRESH_INTERVAL);
         });
 
         // Form submission handler
@@ -226,7 +238,8 @@
 
                 // Display results
                 document.getElementById('result-karat').textContent = data.karat + 'k';
-                document.getElementById('result-weight').textContent = data.weight_in_grams.toFixed(4) + ' grams';
+                const weightVal = (data.weight_in_grams !== undefined) ? data.weight_in_grams : data.weight;
+                document.getElementById('result-weight').textContent = Number(weightVal).toFixed(4) + ' grams';
                 document.getElementById('result-melt-per-gram').textContent = '€' + data.melt_value_per_gram.toFixed(4);
                 document.getElementById('result-total-melt').textContent = '€' + data.total_melt_value.toFixed(2);
                 document.getElementById('result-buy-pawn-per-gram').textContent = '€' + data.buy_pawn_price_per_gram.toFixed(4);
@@ -252,4 +265,5 @@
         }
     </script>
 </body>
-</html>
+
+</html>\n
